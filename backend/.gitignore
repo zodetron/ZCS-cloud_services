@@ -1,0 +1,18 @@
+# ── Environment / secrets ─────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+
+# ── Dependencies ──────────────────────────────────────────────────────────
+node_modules/
+
+# ── Logs ─────────────────────────────────────────────────────────────────
+*.log
+
+# ── Prisma generated client (regenerated on deploy via postinstall) ────────
+# prisma/migrations/ is intentionally kept — needed for deployments
+
+# ── Build ─────────────────────────────────────────────────────────────────
+dist/
+build/

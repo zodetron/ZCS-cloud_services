@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  plan         String   @default("free")
+  status       String   @default("active")
+  role         String   @default("tenant_admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  buckets     Bucket[]
+  apiKeys     ApiKey[]
+  usageEvents UsageEvent[]
+  invoices    Invoice[]
+  sessions    Session[]
+
+  @@map("tenants")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tenantId  String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Bucket {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  region    String   @default("us-east-1")
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  objects Object[]
+
+  @@unique([tenantId, name])
+  @@map("buckets")
+}
+
+model Object {
+  id           String   @id @default(cuid())
+  tenantId     String
+  bucketId     String
+  key          String
+  size         BigInt   @default(0)
+  contentType  String   @default("application/octet-stream")
+  etag         String?
+  metadata     Json?
+  storageKey   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  @@unique([bucketId, key])
+  @@map("objects")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  keyHash     String    @unique
+  keyPrefix   String
+  permissions String[]  @default(["read", "write"])
+  status      String    @default("active")
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+model UsageEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  eventType  String
+  bytes      BigInt   @default(0)
+  objectKey  String?
+  bucketName String?
+  apiKeyId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, eventType])
+  @@map("usage_events")
+}
+
+model UsageAggregate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  period          String
+  storageBytes    BigInt   @default(0)
+  uploadBytes     BigInt   @default(0)
+  downloadBytes   BigInt   @default(0)
+  requestCount    BigInt   @default(0)
+  objectCount     BigInt   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tenantId, period])
+  @@map("usage_aggregates")
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  tenantId    String
+  period      String
+  status      String   @default("pending")
+  subtotal    Float    @default(0)
+  total       Float    @default(0)
+  lineItems   Json?
+  dueAt       DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model PricingRule {
+  id          String   @id @default(cuid())
+  name        String
+  metric      String
+  unitPrice   Float
+  unit        String
+  freeQuota   BigInt   @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pricing_rules")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  action    String
+  resource  String?
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("platform_admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admins")
+}

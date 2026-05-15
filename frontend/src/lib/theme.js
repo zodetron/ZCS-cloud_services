@@ -1,0 +1,26 @@
+export const themes = {
+  dark: {
+    background: 'hsl(0 0% 3.9%)',
+    foreground: 'hsl(0 0% 98%)',
+    card: 'hsl(0 0% 3.9%)',
+    cardForeground: 'hsl(0 0% 98%)',
+    primary: 'hsl(217 91% 60%)',
+    primaryForeground: 'hsl(0 0% 98%)',
+    muted: 'hsl(0 0% 14.9%)',
+    mutedForeground: 'hsl(0 0% 63.9%)',
+    border: 'hsl(0 0% 14.9%)',
+    accent: 'hsl(217 91% 60%)',
+  },
+  light: {
+    background: 'hsl(0 0% 100%)',
+    foreground: 'hsl(0 0% 3.9%)',
+    card: 'hsl(0 0% 100%)',
+    cardForeground: 'hsl(0 0% 3.9%)',
+    primary: 'hsl(217 91% 60%)',
+    primaryForeground: 'hsl(0 0% 98%)',
+    muted: 'hsl(0 0% 96.1%)',
+    mutedForeground: 'hsl(0 0% 45.1%)',
+    border: 'hsl(0 0% 89.8%)',
+    accent: 'hsl(217 91% 60%)',
+  },
+};

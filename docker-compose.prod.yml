@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: storagecloud-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: storagecloud
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: storagecloud-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: storagecloud-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  backend:
+    image: storagecloud-backend:latest
+    container_name: storagecloud-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/storagecloud
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MINIO_ENDPOINT: minio
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
+      CORS_ORIGINS: ${FRONTEND_URL}
+    networks:
+      - internal
+      - public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: storagecloud-frontend:latest
+    container_name: storagecloud-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL}
+    networks:
+      - public
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: storagecloud-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - public
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
