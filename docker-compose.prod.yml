@@ -1,5 +1,8 @@
 version: '3.9'
 
+# docker-compose automatically reads .env from this directory.
+# All ${VAR} references below are resolved from the root .env file.
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: storagecloud
+      POSTGRES_DB: ${POSTGRES_DB:-storagecloud}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -45,16 +48,13 @@ services:
   backend:
     image: storagecloud-backend:latest
     container_name: storagecloud-backend
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/storagecloud
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-storagecloud}
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
       MINIO_ENDPOINT: minio
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
-      CORS_ORIGINS: ${FRONTEND_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
     networks:
       - internal
       - public
@@ -66,8 +66,13 @@ services:
   frontend:
     image: storagecloud-frontend:latest
     container_name: storagecloud-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     environment:
-      NEXT_PUBLIC_API_URL: ${API_URL}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     networks:
       - public
     depends_on:

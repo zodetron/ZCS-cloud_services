@@ -1,19 +1,22 @@
 version: '3.9'
 
+# docker-compose automatically reads .env from this directory.
+# All ${VAR} references below are resolved from the root .env file.
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: storagecloud-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: storagecloud
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-storagecloud}
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -36,8 +39,8 @@ services:
     container_name: storagecloud-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -55,19 +58,15 @@ services:
       dockerfile: Dockerfile
     container_name: storagecloud-backend
     ports:
-      - '4000:4000'
+      - '${PORT:-4000}:4000'
+    # In Docker, container names replace localhost — override only the network-specific vars.
+    # All other vars (JWT_SECRET, MINIO keys, etc.) come from env_file.
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/storagecloud
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-storagecloud}
       REDIS_HOST: redis
-      REDIS_PORT: 6379
       MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_USE_SSL: 'false'
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       NODE_ENV: production
-      CORS_ORIGINS: http://localhost:3000
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,11 +77,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Pass at build time so Next.js bakes NEXT_PUBLIC_API_URL into the bundle
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     container_name: storagecloud-frontend
     ports:
       - '3000:3000'
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     depends_on:
       - backend
 

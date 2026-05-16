@@ -1,4 +1,12 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Load from root .env (monorepo: backend/src/config → root is 3 levels up).
+// In Docker, process.env is already populated by docker-compose env_file — dotenv
+// silently ignores a missing file and never overwrites existing env vars.
+const __dirname = dirname(fileURLToPath(import.meta.url));
+loadEnv({ path: resolve(__dirname, '../../../.env') });
 
 export const config = {
   port: parseInt(process.env.PORT || '4000'),
