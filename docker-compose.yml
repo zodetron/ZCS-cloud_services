@@ -52,15 +52,15 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  app:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: storagecloud-backend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost}
+    container_name: storagecloud-app
     ports:
-      - '${PORT:-4000}:4000'
-    # In Docker, container names replace localhost — override only the network-specific vars.
-    # All other vars (JWT_SECRET, MINIO keys, etc.) come from env_file.
+      - '${PORT:-80}:80'
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-storagecloud}
@@ -72,21 +72,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # Pass at build time so Next.js bakes NEXT_PUBLIC_API_URL into the bundle
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
-    container_name: storagecloud-frontend
-    ports:
-      - '3000:3000'
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
-    depends_on:
-      - backend
 
 volumes:
   postgres_data:

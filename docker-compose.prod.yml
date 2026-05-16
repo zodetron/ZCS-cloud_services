@@ -45,54 +45,27 @@ services:
       - internal
     restart: unless-stopped
 
-  backend:
-    image: storagecloud-backend:latest
-    container_name: storagecloud-backend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: storagecloud-app
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-storagecloud}
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio
       NODE_ENV: production
-      CORS_ORIGINS: ${CORS_ORIGINS}
+    ports:
+      - '80:80'
     networks:
       - internal
       - public
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
-
-  frontend:
-    image: storagecloud-frontend:latest
-    container_name: storagecloud-frontend
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    networks:
-      - public
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    container_name: storagecloud-nginx
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    networks:
-      - public
-    depends_on:
-      - frontend
-      - backend
     restart: unless-stopped
 
 networks:
