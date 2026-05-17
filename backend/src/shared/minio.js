@@ -8,14 +8,15 @@ export const minioClient = new Minio.Client({
   useSSL: config.minio.useSSL,
   accessKey: config.minio.accessKey,
   secretKey: config.minio.secretKey,
+  pathStyle: true,
 });
 
 export async function ensureMinioReady() {
   try {
     const exists = await minioClient.bucketExists(config.minio.bucket);
     if (!exists) {
-      await minioClient.makeBucket(config.minio.bucket, 'us-east-1');
-      logger.info(`MinIO default bucket '${config.minio.bucket}' created`);
+      await minioClient.makeBucket(config.minio.bucket);
+      logger.info(`Default bucket '${config.minio.bucket}' created`);
     }
     logger.info('MinIO connected');
   } catch (err) {

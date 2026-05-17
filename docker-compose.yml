@@ -65,6 +65,11 @@ services:
     environment:
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_DEFAULT_BUCKET: storagecloud
       NODE_ENV: production
     depends_on:
       redis:

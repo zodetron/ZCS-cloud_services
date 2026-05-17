@@ -3,6 +3,7 @@ import { minioClient } from '../shared/minio.js';
 import { authenticateApiKey } from '../middleware/auth.js';
 import { config } from '../config/index.js';
 import { NotFoundError, ConflictError, ValidationError } from '../shared/errors.js';
+import { logger } from '../shared/logger.js';
 
 async function emitUsage(tenantId, apiKeyId, eventType, bytes, extra = {}) {
   await prisma.usageEvent.create({
@@ -126,7 +127,12 @@ export async function storageRoutes(fastify) {
     const buffer = Buffer.from(typeof content === 'string' ? content : JSON.stringify(content, null, 2));
     const bytes = buffer.length;
 
-    await minioClient.putObject(config.minio.bucket, storageKey, buffer, bytes, { 'Content-Type': contentType });
+    try {
+      await minioClient.putObject(config.minio.bucket, storageKey, buffer, bytes, { 'Content-Type': contentType });
+    } catch (err) {
+      logger.error('Storage upload failed', { err: err.message, bucket: config.minio.bucket, storageKey });
+      throw err;
+    }
 
     const object = await prisma.object.upsert({
       where: { bucketId_key: { bucketId: bucket.id, key } },
@@ -172,7 +178,12 @@ export async function storageRoutes(fastify) {
     const contentType = data.mimetype || 'application/octet-stream';
 
     const storageKey = `${req.tenantId}/${bucket.id}/${key}`;
-    await minioClient.putObject(config.minio.bucket, storageKey, buffer, bytes, { 'Content-Type': contentType });
+    try {
+      await minioClient.putObject(config.minio.bucket, storageKey, buffer, bytes, { 'Content-Type': contentType });
+    } catch (err) {
+      logger.error('Storage upload failed', { err: err.message, bucket: config.minio.bucket, storageKey });
+      throw err;
+    }
 
     const object = await prisma.object.upsert({
       where: { bucketId_key: { bucketId: bucket.id, key } },
