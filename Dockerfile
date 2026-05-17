@@ -17,7 +17,7 @@ RUN npm run build
 # ── Stage 2: Single app container (backend + frontend + nginx) ──────────────────
 FROM node:20-alpine
 
-RUN apk add --no-cache nginx supervisor openssl
+RUN apk add --no-cache nginx supervisor openssl gettext
 
 WORKDIR /app
 
@@ -33,12 +33,12 @@ COPY --from=frontend-builder /frontend/.next/static ./frontend/.next/static
 COPY --from=frontend-builder /frontend/public ./frontend/public
 
 # ── Config files ─────────────────────────────────────────────────────────────────
-COPY nginx-app.conf /etc/nginx/nginx.conf
+COPY nginx-app.conf /etc/nginx/nginx.conf.template
 COPY supervisord.conf /etc/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Single exposed port — nginx routes /api/* → backend:4000, /* → frontend:3000
-EXPOSE 80
+EXPOSE 10000
 
 ENTRYPOINT ["/entrypoint.sh"]
