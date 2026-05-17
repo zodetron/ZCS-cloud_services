@@ -60,16 +60,13 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost}
     container_name: storagecloud-app
     ports:
-      - '${PORT:-80}:80'
+      - '3000:80'
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-storagecloud}
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio
       NODE_ENV: production
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
