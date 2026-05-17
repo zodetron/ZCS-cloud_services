@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: resolve(__dirname, '../../../.env') });
 
 export const config = {
-  port: parseInt(process.env.PORT || '4000'),
+  port: parseInt(process.env.BACKEND_PORT || '4000'),
   nodeEnv: process.env.NODE_ENV || 'development',
 
   database: {
@@ -17,6 +17,7 @@ export const config = {
   },
 
   redis: {
+    url: process.env.REDIS_URL || null,
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
     password: process.env.REDIS_PASSWORD || undefined,
