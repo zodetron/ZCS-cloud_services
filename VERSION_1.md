@@ -72,34 +72,52 @@ The metering module has two different auth requirements: the `/demo/usage` endpo
 
 ## 3. System Architecture
 
+### Production (single-container, Render)
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         Internet                            │
 └──────────────────────┬──────────────────────────────────────┘
                        │
-              ┌────────▼────────┐
-              │  Nginx (prod)   │  Port 80/443, TLS termination
-              │  or localhost   │  (dev: direct ports)
-              └────┬───────┬────┘
-                   │       │
-        ┌──────────▼──┐  ┌─▼──────────────┐
-        │  Frontend   │  │    Backend      │
-        │  Next.js    │  │   Fastify API   │
-        │  Port 3000  │  │   Port 4000     │
-        └─────────────┘  └──┬──────┬───┬──┘
-                            │      │   │
-               ┌────────────▼──┐   │   └─────────────────┐
-               │  PostgreSQL   │   │                      │
-               │  Port 5432    │   │              ┌───────▼──────┐
-               │  (all metadata│   │              │    Redis      │
-               │   + accounts) │   │              │   Port 6379   │
-               └───────────────┘   │              │ (rate limits) │
-                                   │              └──────────────┘
-                          ┌────────▼──────┐
-                          │    MinIO      │
-                          │  Port 9000    │
-                          │ (file bytes)  │
-                          └───────────────┘
+              ┌────────▼──────────────────────────────────┐
+              │         Single App Container              │
+              │                                           │
+              │  ┌──────────┐  routes /api/* → Backend   │
+              │  │  Nginx   │  routes /*     → Frontend   │
+              │  │  $PORT   │                             │
+              │  └────┬──┬──┘                             │
+              │       │  │                                │
+              │  ┌────▼─┐ └──────────────┐               │
+              │  │Next  │                │               │
+              │  │.js   │   ┌────────────▼──┐            │
+              │  │:3000 │   │  Fastify API  │            │
+              │  └──────┘   │  :4000        │            │
+              │             └───────────────┘            │
+              └───────────────────────────────────────────┘
+                       │             │
+          ┌────────────▼──┐   ┌──────▼──────┐
+          │  Neon Postgres │   │Upstash Redis│
+          │  (hosted)      │   │  (hosted)   │
+          └───────────────┘   └─────────────┘
+                       │
+          ┌────────────▼──┐
+          │  MinIO / B2   │
+          │  (file bytes) │
+          └───────────────┘
+```
+
+### Local development (docker-compose)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         localhost                           │
+│                                                             │
+│  :3000 → Single App Container (nginx → next.js + fastify)  │
+│  :5432 → PostgreSQL (local)                                 │
+│  :6379 → Redis (local)                                      │
+│  :9000 → MinIO API (local)                                  │
+│  :9001 → MinIO Console (local)                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Request flow for an API upload
@@ -167,10 +185,14 @@ Fastify Backend
 | Technology | Purpose |
 |---|---|
 | Docker + Docker Compose | Container orchestration |
-| MinIO | Self-hosted S3-compatible object storage |
-| PostgreSQL 16 | Primary relational database |
-| Redis 7 | Rate limiting, caching |
-| Nginx | Reverse proxy + TLS in production |
+| Nginx | Reverse proxy inside app container — routes `/api/*` and `/*` |
+| supervisord | Process manager — runs nginx + Next.js + Fastify in one container |
+| Neon | Hosted PostgreSQL (production) |
+| PostgreSQL 16 | Local database (development via docker-compose) |
+| Upstash | Hosted Redis (production) |
+| Redis 7 | Local rate limiting/caching (development via docker-compose) |
+| MinIO | Self-hosted S3-compatible object storage (local dev) |
+| Backblaze B2 / Cloudflare R2 | S3-compatible cloud storage (production — pending setup) |
 
 ---
 
@@ -832,37 +854,58 @@ Files larger than 100MB are rejected by `@fastify/multipart`. This prevents disk
 
 ## 16. Deployment Architecture
 
+### Single-Container Design
+Backend (Fastify) and Frontend (Next.js) run together in one Docker image using `supervisord` to manage three processes:
+
+| Process | Internal Port | Role |
+|---|---|---|
+| nginx | `$PORT` (Render sets this) | Entry point — routes all traffic |
+| Next.js (standalone) | 3000 | Serves frontend pages |
+| Fastify | 4000 (`BACKEND_PORT`) | Serves API |
+
+nginx uses `envsubst` to substitute `${PORT}` into its config at container startup, so it binds to whatever port Render assigns. This prevents Render from routing to the wrong process.
+
 ### Development (`docker-compose.yml`)
-All five services run on the same Docker network. All ports are published to localhost. Credentials are hardcoded defaults. Backend is built from source on startup. Suitable only for local development.
+One `app` container (nginx + Next.js + Fastify) plus local postgres, redis, and minio sidecars.
 
 ```
-localhost:3000  → Next.js frontend
-localhost:4000  → Fastify backend
-localhost:5432  → PostgreSQL
-localhost:6379  → Redis
-localhost:9000  → MinIO API
-localhost:9001  → MinIO Console
+localhost:3000  → App container (nginx → Next.js + Fastify)
+localhost:5432  → PostgreSQL (local)
+localhost:6379  → Redis (local)
+localhost:9000  → MinIO API (local)
+localhost:9001  → MinIO Console (local)
 ```
 
-### Production (`docker-compose.prod.yml`)
-Adds Nginx as a reverse proxy on ports 80/443. Splits services into two Docker networks:
-- `internal` — PostgreSQL, Redis, MinIO (no public internet access)
-- `public` — Backend, Frontend, Nginx (internet-facing)
+### Production — Render
+| Service | Provider | Notes |
+|---|---|---|
+| App (frontend + backend) | Render Web Service | Single container, root `Dockerfile` |
+| Database | Neon (hosted Postgres) | Connection string with `?sslmode=require` |
+| Cache | Upstash (hosted Redis) | `rediss://` URL (SSL required) |
+| File storage | Pending — Backblaze B2 | Not yet configured |
 
-MinIO, Postgres, and Redis have no published ports — they're only reachable by the backend container via Docker's internal DNS.
+URL: **https://zcs-bfm3.onrender.com**
 
-```
-Internet → Nginx (80/443) → Frontend (3000)
-                          → Backend (4000)
-Backend → postgres:5432  (internal network only)
-       → redis:6379      (internal network only)
-       → minio:9000      (internal network only)
-```
+### Environment variable loading (unified `.env`)
+A single `.env` at the project root serves all services:
+- **Backend** loads it via `dotenv` with explicit path: `backend/src/config/index.js` → `../../../.env`
+- **Frontend** (Next.js build) loads it via `dotenv` in `next.config.mjs` → `../.env`
+- **docker-compose** reads it automatically (it's in the same directory)
+- **Render / Docker**: vars are injected by the platform — `dotenv` silently ignores the missing file and never overwrites existing `process.env` vars
 
-All environment variables come from a `.env` file (not committed — see `.env.example`).
+`NEXT_PUBLIC_*` vars must be set as Docker build args (`build.args` in docker-compose, **Build Arguments** in Render) since Next.js bakes them into the JS bundle at build time, not runtime.
 
 ### Switching from MinIO to a cloud provider (no code changes needed)
-The `minio` npm client speaks the S3 protocol. To use Cloudflare R2, AWS S3, or Backblaze B2, change these env vars:
+The `minio` npm client speaks the S3 protocol. To use Backblaze B2, Cloudflare R2, or AWS S3, change these env vars:
+
+**Backblaze B2 (recommended — free 10GB, no credit card):**
+```
+MINIO_ENDPOINT=s3.us-west-004.backblazeb2.com
+MINIO_PORT=443
+MINIO_USE_SSL=true
+MINIO_ACCESS_KEY=<b2-key-id>
+MINIO_SECRET_KEY=<b2-app-key>
+```
 
 **Cloudflare R2:**
 ```
@@ -886,30 +929,32 @@ MINIO_SECRET_KEY=<aws-secret-access-key>
 
 ## 17. Environment Variables
 
-### Backend (`backend/.env`)
+All variables live in a single `.env` at the project root (replaces the old `backend/.env` and `frontend/.env.local`). See `.env.example` for the full template.
+
 | Variable | Default | Required in prod | Purpose |
 |---|---|---|---|
-| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/storagecloud` | Yes | Postgres connection string |
-| `REDIS_HOST` | `localhost` | Yes | Redis hostname |
+| `DATABASE_URL` | `postgresql://...@localhost:5432/storagecloud` | Yes | Full Postgres connection string. For Neon: append `?sslmode=require` |
+| `POSTGRES_USER` | `postgres` | No | Used by docker-compose to start local postgres |
+| `POSTGRES_PASSWORD` | `postgres` | No | Used by docker-compose to start local postgres |
+| `POSTGRES_DB` | `storagecloud` | No | Used by docker-compose to start local postgres |
+| `REDIS_URL` | (empty) | Yes (prod) | Full Redis connection string. For Upstash: `rediss://default:TOKEN@host:6379`. If set, overrides host/port/password below |
+| `REDIS_HOST` | `localhost` | No | Redis hostname (used when REDIS_URL is not set) |
 | `REDIS_PORT` | `6379` | No | Redis port |
-| `REDIS_PASSWORD` | (empty) | Yes | Redis auth password |
+| `REDIS_PASSWORD` | (empty) | No | Redis password |
 | `MINIO_ENDPOINT` | `localhost` | Yes | MinIO/S3 hostname |
 | `MINIO_PORT` | `9000` | Yes | MinIO port (443 for cloud) |
 | `MINIO_USE_SSL` | `false` | Yes | `true` for cloud providers |
 | `MINIO_ACCESS_KEY` | `minioadmin` | Yes | MinIO/S3 access key |
 | `MINIO_SECRET_KEY` | `minioadmin` | Yes | MinIO/S3 secret key |
 | `MINIO_DEFAULT_BUCKET` | `storagecloud` | No | Internal bucket name |
-| `JWT_SECRET` | `dev-secret-...` | **Critical** | Sign/verify JWTs |
+| `JWT_SECRET` | `change-me-in-production` | **Critical** | Sign/verify JWTs — use 64+ random chars |
 | `JWT_EXPIRES_IN` | `7d` | No | Token lifetime |
-| `JWT_REFRESH_SECRET` | `dev-refresh-...` | No | Refresh token secret (V2) |
-| `PORT` | `4000` | No | Backend listen port |
+| `JWT_REFRESH_SECRET` | `change-me-refresh-in-production` | No | Refresh token secret (V2) |
+| `PORT` | `80` | No | Port nginx listens on. **Do not set in Render** — let Render set it automatically |
+| `BACKEND_PORT` | `4000` | No | Port Fastify listens on (always internal, never exposed) |
 | `NODE_ENV` | `development` | Yes | `production` for prod |
-| `CORS_ORIGINS` | `http://localhost:3000` | Yes | Allowed frontend origins |
-
-### Frontend (`frontend/.env.local`)
-| Variable | Default | Purpose |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | Backend API base URL |
+| `CORS_ORIGINS` | `http://localhost:3000` | Yes | Comma-separated allowed frontend origins |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | Yes | Full URL the browser uses to call the API. Must also be set as a **build arg** in Render. |
 
 ---
 
@@ -989,8 +1034,10 @@ All endpoints are prefixed with the backend URL (default `http://localhost:4000`
 | No email | No email verification on signup, no password reset email, no invoice emails. |
 | No webhook system | No way for tenants to receive notifications when storage events happen. |
 | No CDN | Files serve directly from MinIO/backend. No edge caching. |
-| Redis not production-hardened | Rate limiting uses Redis but Redis has no password in the dev compose file. |
 | UsageAggregate not populated | The `usage/history` endpoint returns empty unless aggregates have been manually inserted. |
+| File storage not connected in production | MinIO runs locally in docker-compose but Render cannot host MinIO. Backblaze B2 or Cloudflare R2 must be configured via env vars for file uploads to work in production. |
+| Seed runs on every container start | The seed script runs every time the container starts. Harmless (Prisma upserts), but adds ~10s to startup. Fix: add existence check in seed.js before inserting. |
+| JWT secrets are placeholder values | `JWT_SECRET=change-me-in-production` is the default. Must be replaced with a 64+ character random string before handling real user data. |
 
 ---
 
@@ -998,32 +1045,37 @@ All endpoints are prefixed with the backend URL (default `http://localhost:4000`
 
 ```
 / (project root)
-├── .env.example               — env var template (commit this, not .env)
+├── .env                       — unified env for all services (gitignored)
+├── .env.example               — env var template with all variables documented
 ├── .gitignore                 — excludes .env, node_modules, .next, .claude, etc.
-├── docker-compose.yml         — local development (all ports exposed)
-├── docker-compose.prod.yml    — production (internal network, nginx, env vars)
-├── nginx.conf                 — reverse proxy config for production
+├── Dockerfile                 — single-container build (backend + frontend + nginx)
+├── entrypoint.sh              — DB migration + seed + envsubst nginx + start supervisord
+├── nginx-app.conf             — nginx template (uses ${PORT} substituted at runtime)
+├── supervisord.conf           — manages nginx, Next.js, Fastify as one unit
+├── docker-compose.yml         — local dev: app + postgres + redis + minio
+├── docker-compose.prod.yml    — production: app + internal postgres + redis + minio
+├── nginx.conf                 — kept for reference (multi-container setup)
 ├── VERSION_1.md               — this document
+├── DEPLOYMENT_FIXES.md        — record of all deployment issues and fixes
 │
 ├── backend/
-│   ├── .env                   — real credentials (gitignored)
-│   ├── .dockerignore
-│   ├── Dockerfile
-│   ├── entrypoint.sh          — runs migrations then starts server
+│   ├── Dockerfile             — kept for reference (single-service build)
+│   ├── entrypoint.sh          — kept for reference (single-service startup)
 │   ├── package.json
 │   ├── prisma/
 │   │   ├── schema.prisma      — 11 database models
-│   │   ├── seed.js            — creates default admin account
+│   │   ├── seed.js            — creates default admin + demo tenant
 │   │   └── migrations/        — auto-generated migration files
 │   └── src/
 │       ├── index.js           — Fastify bootstrap, plugin registration
-│       ├── config/index.js    — env var config object
+│       ├── config/index.js    — unified env config (reads REDIS_URL, BACKEND_PORT, etc.)
 │       ├── middleware/
 │       │   └── auth.js        — authenticate, authenticateApiKey, authenticateAdmin
 │       ├── shared/
 │       │   ├── errors.js      — AppError subclasses + errorHandler
 │       │   ├── logger.js      — Winston logger
-│       │   ├── redis.js       — ioredis client
+│       │   ├── redis.js       — ioredis client (URL-first, host/port fallback)
+│       │   ├── cache.js       — get/set/invalidate helpers over redis
 │       │   ├── prisma.js      — PrismaClient singleton
 │       │   └── minio.js       — MinIO client + ensureMinioReady
 │       ├── auth/
@@ -1041,12 +1093,9 @@ All endpoints are prefixed with the backend URL (default `http://localhost:4000`
 │           └── index.js       — Redis-backed rate limiter
 │
 └── frontend/
-    ├── .env.local             — NEXT_PUBLIC_API_URL (gitignored)
-    ├── .gitignore
-    ├── Dockerfile
-    ├── package.json
-    ├── tailwind.config.js
-    ├── next.config.js
+    ├── Dockerfile             — kept for reference (single-service build)
+    ├── package.json           — includes dotenv (needed for next.config.mjs)
+    ├── next.config.mjs        — loads root .env, defines rewrites
     └── src/
         ├── app/
         │   ├── layout.js                    — root layout (theme provider)
@@ -1073,7 +1122,7 @@ All endpoints are prefixed with the backend URL (default `http://localhost:4000`
         │       ├── logs/page.js
         │       └── infrastructure/page.js
         ├── lib/
-        │   ├── api.js          — fetch wrapper (auto-injects Bearer token)
+        │   ├── api.js          — fetch wrapper using NEXT_PUBLIC_API_URL
         │   ├── animations.js   — Framer Motion variants
         │   └── utils.js        — cn() class merging utility
         ├── store/
@@ -1098,4 +1147,4 @@ All endpoints are prefixed with the backend URL (default `http://localhost:4000`
 
 ---
 
-*Version 1 — complete as of May 2025*
+*Version 1 — updated May 2026. Live at https://zcs-bfm3.onrender.com*

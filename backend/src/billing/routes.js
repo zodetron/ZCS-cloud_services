@@ -1,6 +1,7 @@
 import { prisma } from '../shared/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { NotFoundError } from '../shared/errors.js';
+import { getCache, setCache, tenantCacheKey } from '../shared/cache.js';
 
 const GB = 1024 * 1024 * 1024;
 const PRICING = {
@@ -48,6 +49,10 @@ export async function billingRoutes(fastify) {
   });
 
   fastify.get('/estimate', async (req) => {
+    const cacheKey = tenantCacheKey(req.tenantId, 'billing:estimate');
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -74,7 +79,7 @@ export async function billingRoutes(fastify) {
 
     const costs = calculateCost(storageBytes, downloadBytes, requestCount);
 
-    return {
+    const result = {
       period: startOfMonth.toISOString().slice(0, 7),
       usage: {
         storageBytes: storageBytes.toString(),
@@ -84,5 +89,8 @@ export async function billingRoutes(fastify) {
       costs,
       pricing: PRICING,
     };
+
+    await setCache(cacheKey, result, 120); // 2 min cache
+    return result;
   });
 }

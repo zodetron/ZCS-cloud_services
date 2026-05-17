@@ -1,5 +1,6 @@
 import { prisma } from '../shared/prisma.js';
 import { authenticate, authenticateApiKey } from '../middleware/auth.js';
+import { getCache, setCache, tenantCacheKey } from '../shared/cache.js';
 
 export async function meteringRoutes(fastify) {
   // ── Demo usage — isolated scope so only API-key auth applies ───────────────
@@ -67,37 +68,33 @@ export async function meteringRoutes(fastify) {
     scope.addHook('preHandler', authenticate);
 
     scope.get('/usage/summary', async (req) => {
+      const cacheKey = tenantCacheKey(req.tenantId, 'usage:summary');
+      const cached = await getCache(cacheKey);
+      if (cached) return cached;
+
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const [storageResult, uploadResult, downloadResult, requestCount] = await Promise.all([
-        prisma.usageEvent.aggregate({
-          where: { tenantId: req.tenantId, eventType: 'storage_put', createdAt: { gte: startOfMonth } },
-          _sum: { bytes: true },
-        }),
-        prisma.usageEvent.aggregate({
-          where: { tenantId: req.tenantId, eventType: 'upload', createdAt: { gte: startOfMonth } },
-          _sum: { bytes: true },
-        }),
-        prisma.usageEvent.aggregate({
-          where: { tenantId: req.tenantId, eventType: 'download', createdAt: { gte: startOfMonth } },
-          _sum: { bytes: true },
-        }),
-        prisma.usageEvent.count({
-          where: { tenantId: req.tenantId, createdAt: { gte: startOfMonth } },
-        }),
-      ]);
+      const [storageResult, uploadResult, downloadResult, requestCount, objectCount, totalStorageBytes] =
+        await Promise.all([
+          prisma.usageEvent.aggregate({
+            where: { tenantId: req.tenantId, eventType: 'storage_put', createdAt: { gte: startOfMonth } },
+            _sum: { bytes: true },
+          }),
+          prisma.usageEvent.aggregate({
+            where: { tenantId: req.tenantId, eventType: 'upload', createdAt: { gte: startOfMonth } },
+            _sum: { bytes: true },
+          }),
+          prisma.usageEvent.aggregate({
+            where: { tenantId: req.tenantId, eventType: 'download', createdAt: { gte: startOfMonth } },
+            _sum: { bytes: true },
+          }),
+          prisma.usageEvent.count({ where: { tenantId: req.tenantId, createdAt: { gte: startOfMonth } } }),
+          prisma.object.count({ where: { tenantId: req.tenantId } }),
+          prisma.object.aggregate({ where: { tenantId: req.tenantId }, _sum: { size: true } }),
+        ]);
 
-      const objectCount = await prisma.object.count({
-        where: { tenantId: req.tenantId },
-      });
-
-      const totalStorageBytes = await prisma.object.aggregate({
-        where: { tenantId: req.tenantId },
-        _sum: { size: true },
-      });
-
-      return {
+      const result = {
         period: startOfMonth.toISOString().slice(0, 7),
         storageBytes: totalStorageBytes._sum.size?.toString() || '0',
         uploadBytes: uploadResult._sum.bytes?.toString() || '0',
@@ -105,17 +102,24 @@ export async function meteringRoutes(fastify) {
         requestCount,
         objectCount,
       };
+
+      await setCache(cacheKey, result, 60); // 60s cache
+      return result;
     });
 
     scope.get('/usage/history', async (req) => {
       const { months = 6 } = req.query;
+      const cacheKey = tenantCacheKey(req.tenantId, `usage:history:${months}`);
+      const cached = await getCache(cacheKey);
+      if (cached) return cached;
+
       const aggregates = await prisma.usageAggregate.findMany({
         where: { tenantId: req.tenantId },
         orderBy: { period: 'desc' },
         take: parseInt(months),
       });
 
-      return {
+      const result = {
         history: aggregates.map((a) => ({
           ...a,
           storageBytes: a.storageBytes.toString(),
@@ -125,6 +129,9 @@ export async function meteringRoutes(fastify) {
           objectCount: a.objectCount.toString(),
         })),
       };
+
+      await setCache(cacheKey, result, 300); // 5 min cache
+      return result;
     });
 
     scope.get('/usage/events', async (req) => {
