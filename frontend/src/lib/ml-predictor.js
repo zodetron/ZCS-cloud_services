@@ -52,7 +52,7 @@ async function trainAndPredict(tf, historicalValues, currentRaw, dayFraction) {
   const col1 = stats(xRows.map((r) => r[1]));
   const yS = stats(yVals);
 
-  const xNorm = xRows.map((r, i) => [col0.norm[i], col1.norm[i]]);
+  const xNorm = xRows.map((_r, i) => [col0.norm[i], col1.norm[i]]);
 
   // ── Model: single Dense(1) — pure linear regression ─────────────────────
   const model = tf.sequential({
@@ -138,9 +138,10 @@ export async function runMLPrediction(historyRaw, summaryNow) {
 
   // Cost estimate from predicted values
   const FREE = { storageGB: 5, egressGB: 1, requests: 10_000 };
-  const RATES = { storageGB: 0.023, egressGB: 0.09, requests1k: 0.0004 };
+  const RATES = { storageGB: 50, uploadGB: 30, egressGB: 20, requests1k: 500 };
 
   const storageCost  = Math.max(0, results.storageBytes.predicted  - FREE.storageGB)  * RATES.storageGB;
+  const uploadCost   = results.uploadBytes.predicted * RATES.uploadGB;
   const downloadCost = Math.max(0, results.downloadBytes.predicted - FREE.egressGB)   * RATES.egressGB;
   const requestCost  = Math.max(0, results.requestCount.predicted  - FREE.requests)   / 1000 * RATES.requests1k;
 
@@ -148,7 +149,7 @@ export async function runMLPrediction(historyRaw, summaryNow) {
     label:     "Est. Cost",
     unit:      "$",
     current:   null,
-    predicted: +(storageCost + downloadCost + requestCost).toFixed(4),
+    predicted: +(storageCost + uploadCost + downloadCost + requestCost).toFixed(4),
     confidence: results.storageBytes.confidence,
   };
 

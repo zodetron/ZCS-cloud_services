@@ -232,14 +232,21 @@ export default function DashboardPage() {
                   {
                     label: "Storage",
                     bytes: usage?.storageBytes || "0",
-                    rate: 0.023,
+                    rate: 50,
                     unit: "GB",
                     color: "bg-blue-500",
                   },
                   {
+                    label: "Upload",
+                    bytes: usage?.uploadBytes || "0",
+                    rate: 30,
+                    unit: "GB",
+                    color: "bg-violet-500",
+                  },
+                  {
                     label: "Egress",
                     bytes: usage?.downloadBytes || "0",
-                    rate: 0.09,
+                    rate: 20,
                     unit: "GB",
                     color: "bg-emerald-500",
                   },
@@ -270,7 +277,7 @@ export default function DashboardPage() {
                 <div className="pt-2 border-t border-border/30 flex justify-between text-sm">
                   <span className="text-muted-foreground">Requests</span>
                   <span className="font-mono text-foreground">
-                    ${(((usage?.requestCount || 0) / 1000) * 0.0004).toFixed(6)}
+                    ${(((usage?.requestCount || 0) / 1000) * 500).toFixed(6)}
                   </span>
                 </div>
               </div>

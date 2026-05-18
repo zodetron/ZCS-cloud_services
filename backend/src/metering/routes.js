@@ -37,10 +37,11 @@ export async function meteringRoutes(fastify) {
       const storageBytes = Number(totalStorage._sum.size || 0);
 
       const GB = 1024 ** 3;
-      const storageCost = (storageBytes / GB) * 0.023;
-      const egressCost = (downloadBytes / GB) * 0.09;
-      const requestCost = (requestCount / 1000) * 0.0004;
-      const totalCost = storageCost + egressCost + requestCost;
+      const storageCost = (storageBytes / GB) * 50;
+      const uploadCost  = (uploadBytes  / GB) * 30;
+      const egressCost  = (downloadBytes / GB) * 20;
+      const requestCost = (requestCount / 1000) * 500;
+      const totalCost = storageCost + uploadCost + egressCost + requestCost;
 
       return {
         period: startOfMonth.toISOString().slice(0, 7),
@@ -50,10 +51,11 @@ export async function meteringRoutes(fastify) {
         requestCount,
         objectCount,
         costs: {
-          storage: +storageCost.toFixed(6),
-          egress: +egressCost.toFixed(6),
+          storage:  +storageCost.toFixed(6),
+          upload:   +uploadCost.toFixed(6),
+          egress:   +egressCost.toFixed(6),
           requests: +requestCost.toFixed(6),
-          total: +totalCost.toFixed(6),
+          total:    +totalCost.toFixed(6),
         },
         recentEvents: recentEvents.map((e) => ({
           id: e.id,

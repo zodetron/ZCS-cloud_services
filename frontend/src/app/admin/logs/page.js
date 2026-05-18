@@ -7,16 +7,20 @@ import { PageHeader } from "@/components/ui/page-header";
 import { api } from "@/lib/api";
 
 const actionColors = {
-  TENANT_SUSPENDED:  "text-red-400 bg-red-500/10",
-  TENANT_ACTIVATED:  "text-emerald-400 bg-emerald-500/10",
-  TENANT_CREATED:    "text-emerald-400 bg-emerald-500/10",
-  PRICING_UPDATED:   "text-orange-400 bg-orange-500/10",
-  API_KEY_REVOKED:   "text-yellow-400 bg-yellow-500/10",
-  API_KEY_CREATED:   "text-blue-400 bg-blue-500/10",
-  BUCKET_CREATED:    "text-blue-400 bg-blue-500/10",
-  BUCKET_DELETED:    "text-red-400 bg-red-500/10",
-  LOGIN_SUCCESS:     "text-emerald-400 bg-emerald-500/10",
-  RATE_LIMIT_HIT:    "text-red-400 bg-red-500/10",
+  TENANT_SUSPENDED:        "text-red-400 bg-red-500/10",
+  TENANT_ACTIVATED:        "text-emerald-400 bg-emerald-500/10",
+  TENANT_CREATED:          "text-emerald-400 bg-emerald-500/10",
+  PRICING_UPDATED:         "text-orange-400 bg-orange-500/10",
+  PRICING_OVERRIDE_SET:    "text-orange-400 bg-orange-500/10",
+  PRICING_OVERRIDE_REMOVED:"text-muted-foreground bg-muted/30",
+  PLAN_CHANGED:            "text-violet-400 bg-violet-500/10",
+  API_KEY_REVOKED:         "text-yellow-400 bg-yellow-500/10",
+  API_KEY_CREATED:         "text-blue-400 bg-blue-500/10",
+  BUCKET_CREATED:          "text-blue-400 bg-blue-500/10",
+  BUCKET_DELETED:          "text-red-400 bg-red-500/10",
+  LOGIN_SUCCESS:           "text-emerald-400 bg-emerald-500/10",
+  RATE_LIMIT_UPDATED:      "text-amber-400 bg-amber-500/10",
+  RATE_LIMIT_HIT:          "text-red-400 bg-red-500/10",
 };
 
 export default function AuditLogsPage() {

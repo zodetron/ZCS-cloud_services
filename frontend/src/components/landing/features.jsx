@@ -231,7 +231,7 @@ export function Features() {
               Pay only for what you use. Monthly invoices with transparent breakdowns.
             </p>
             <div className="mt-5 space-y-2">
-              {[["Storage", "$0.023/GB"], ["Egress", "$0.09/GB"], ["Requests", "$0.0004/1k"]].map(([k, v]) => (
+              {[["Storage", "$50/GB"], ["Upload", "$30/GB"], ["Egress", "$20/GB"], ["Requests", "$0.50/req"]].map(([k, v]) => (
                 <div key={k} className="flex justify-between text-xs">
                   <span className="text-white/30">{k}</span>
                   <span className="font-mono text-white/60">{v}</span>

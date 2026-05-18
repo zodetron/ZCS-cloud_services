@@ -154,7 +154,7 @@ export async function storageRoutes(fastify) {
     return reply.status(201).send({
       object: { ...object, size: object.size.toString() },
       bytes,
-      cost: +(bytes / (1024 ** 3) * 0.023).toFixed(8),
+      cost: +(bytes / (1024 ** 3) * 50).toFixed(8),
     });
   });
 
@@ -206,7 +206,7 @@ export async function storageRoutes(fastify) {
       object: { ...object, size: object.size.toString() },
       bytes,
       filename: data.filename,
-      cost: +(bytes / (1024 ** 3) * 0.023).toFixed(8),
+      cost: +(bytes / (1024 ** 3) * 50).toFixed(8),
     });
   });
 

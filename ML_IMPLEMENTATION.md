@@ -124,9 +124,9 @@ Confidence is shown as a badge on each prediction card and on the section header
 After predicting the raw usage values we apply ZCS pricing with free tier deductions:
 
 ```
-storageCost  = max(0, predictedStorageGB  - 5 GB)      × $0.023 / GB
-downloadCost = max(0, predictedDownloadGB - 1 GB)      × $0.09  / GB
-requestCost  = max(0, predictedRequests   - 10,000)    / 1,000  × $0.0004
+storageCost  = max(0, predictedStorageGB  - 5 GB)      × $50  / GB
+downloadCost = max(0, predictedDownloadGB - 1 GB)      × $20  / GB
+requestCost  = max(0, predictedRequests   - 10,000)    / 1,000  × $500
 ```
 
 This matches exactly the pricing shown on the Billing page.

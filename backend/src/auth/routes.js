@@ -57,6 +57,10 @@ export async function authRoutes(fastify) {
         { expiresIn: config.jwt.expiresIn }
       );
 
+      prisma.auditLog.create({
+        data: { action: 'LOGIN_SUCCESS', resource: `admin:${admin.email}`, ipAddress: req.ip || null, userAgent: req.headers['user-agent'] || null },
+      }).catch(() => {});
+
       return reply.send({
         token,
         tenant: { id: admin.id, name: admin.name, email: admin.email, role: 'platform_admin', plan: 'admin' },
@@ -77,6 +81,10 @@ export async function authRoutes(fastify) {
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
+
+    prisma.auditLog.create({
+      data: { action: 'LOGIN_SUCCESS', resource: `tenant:${tenant.email}`, tenantId: tenant.id, ipAddress: req.ip || null, userAgent: req.headers['user-agent'] || null },
+    }).catch(() => {});
 
     return reply.send({
       token,

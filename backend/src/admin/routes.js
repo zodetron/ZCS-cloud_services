@@ -7,6 +7,19 @@ import { authenticateAdmin } from '../middleware/auth.js';
 import { NotFoundError, ValidationError } from '../shared/errors.js';
 import { invalidateTenantLimitCache } from '../rate-limit/index.js';
 
+function audit(req, action, resource, tenantId = null, details = null) {
+  return prisma.auditLog.create({
+    data: {
+      action,
+      resource,
+      tenantId,
+      details: details ?? undefined,
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null,
+    },
+  }).catch(() => {});
+}
+
 export async function adminRoutes(fastify) {
   fastify.addHook('preHandler', authenticateAdmin);
 
@@ -53,6 +66,8 @@ export async function adminRoutes(fastify) {
     if (!tenant) throw new NotFoundError('Tenant');
 
     await prisma.tenant.update({ where: { id }, data: { status } });
+    const action = status === 'active' ? 'TENANT_ACTIVATED' : 'TENANT_SUSPENDED';
+    audit(req, action, `tenant:${id}`, id, { previousStatus: tenant.status, newStatus: status });
     return reply.send({ message: `Tenant ${status}` });
   });
 
@@ -73,6 +88,7 @@ export async function adminRoutes(fastify) {
       data: { plan },
       select: { id: true, plan: true },
     });
+    audit(req, 'PLAN_CHANGED', `tenant:${id}`, id, { previousPlan: tenant.plan, newPlan: plan });
     return reply.send({ tenant: updated });
   });
 
@@ -180,6 +196,7 @@ export async function adminRoutes(fastify) {
       await prisma.tenant.updateMany({ where, data: { rateLimitMax: max, rateLimitWindow: win } });
       const affected = await prisma.tenant.findMany({ where, select: { id: true } });
       await Promise.all(affected.map((t) => invalidateTenantLimitCache(t.id)));
+      audit(req, 'RATE_LIMIT_UPDATED', `global:${applyTo}`, null, { max, window: win, applied: affected.length });
       return { ok: true, applied: affected.length };
     }
 
@@ -236,6 +253,7 @@ export async function adminRoutes(fastify) {
     });
 
     await invalidateTenantLimitCache(tenantId);
+    audit(req, 'RATE_LIMIT_UPDATED', `tenant:${tenantId}`, tenantId, { rateLimitMax, rateLimitWindow });
     return { tenant: updated };
   });
 
@@ -272,9 +290,9 @@ export async function adminRoutes(fastify) {
   // ── Pricing management ────────────────────────────────────────────────────
 
   const DEFAULT_PRICING = [
-    { name: 'Storage',  metric: 'storage_gb',     unitPrice: 0.023,  unit: 'GB',          freeQuota: BigInt(5)  },
-    { name: 'Egress',   metric: 'download_gb',    unitPrice: 0.09,   unit: 'GB',          freeQuota: BigInt(1)  },
-    { name: 'Requests', metric: 'requests_per_1k',unitPrice: 0.0004, unit: '1k requests', freeQuota: BigInt(10) },
+    { name: 'Storage',  metric: 'storage_gb',     unitPrice: 50,  unit: 'GB',          freeQuota: BigInt(5)  },
+    { name: 'Egress',   metric: 'download_gb',    unitPrice: 20,  unit: 'GB',          freeQuota: BigInt(1)  },
+    { name: 'Requests', metric: 'requests_per_1k',unitPrice: 500, unit: '1k requests', freeQuota: BigInt(10) },
   ];
 
   async function getOrSeedRules() {
@@ -309,6 +327,7 @@ export async function adminRoutes(fastify) {
       }
     }));
 
+    audit(req, 'PRICING_UPDATED', 'pricing:global', null, { rulesUpdated: rules.length });
     return { ok: true };
   });
 
@@ -334,6 +353,7 @@ export async function adminRoutes(fastify) {
     const tenant = await prisma.tenant.findUnique({ where: { id } });
     if (!tenant) throw new NotFoundError('Tenant');
     await prisma.tenant.update({ where: { id }, data: { pricingOverride: pricingOverride ?? null } });
+    audit(req, 'PRICING_OVERRIDE_SET', `tenant:${id}`, id);
     return { ok: true };
   });
 
@@ -342,6 +362,7 @@ export async function adminRoutes(fastify) {
     const tenant = await prisma.tenant.findUnique({ where: { id } });
     if (!tenant) throw new NotFoundError('Tenant');
     await prisma.tenant.update({ where: { id }, data: { pricingOverride: null } });
+    audit(req, 'PRICING_OVERRIDE_REMOVED', `tenant:${id}`, id);
     return reply.status(204).send();
   });
 

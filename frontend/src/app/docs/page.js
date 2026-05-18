@@ -850,9 +850,10 @@ curl "${BASE}/api/storage/search?q=2025/report" \\
     "total": 0.00
   },
   "pricing": {
-    "storage_gb": 0.023,
-    "download_gb": 0.09,
-    "requests_per_1k": 0.0004
+    "storage_gb": 50,
+    "upload_gb": 30,
+    "download_gb": 20,
+    "requests_per_1k": 500
   }
 }`}</Code>
             <Callout type="tip">

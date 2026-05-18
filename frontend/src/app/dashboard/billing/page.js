@@ -36,7 +36,8 @@ export default function BillingPage() {
     load();
   }, []);
 
-  const storageGB = estimate ? toGB(estimate.usage?.storageBytes || 0) : 0;
+  const storageGB  = estimate ? toGB(estimate.usage?.storageBytes  || 0) : 0;
+  const uploadGB   = estimate ? toGB(estimate.usage?.uploadBytes   || 0) : 0;
   const downloadGB = estimate ? toGB(estimate.usage?.downloadBytes || 0) : 0;
   const requests = estimate?.usage?.requestCount || 0;
   const costs = estimate?.costs || {};
@@ -44,8 +45,9 @@ export default function BillingPage() {
   const total = costs.total || 0;
 
   const breakdown = estimate ? [
-    { label: `Storage (${storageGB.toFixed(2)} GB × $${pricing.storage_gb}/GB)`, cost: costs.storageCost || 0 },
-    { label: `Download (${downloadGB.toFixed(2)} GB × $${pricing.download_gb}/GB)`, cost: costs.downloadCost || 0 },
+    { label: `Storage (${storageGB.toFixed(2)} GB × $${pricing.storage_gb}/GB)`,         cost: costs.storageCost  || 0 },
+    { label: `Upload (${uploadGB.toFixed(2)} GB × $${pricing.upload_gb}/GB)`,             cost: costs.uploadCost   || 0 },
+    { label: `Download (${downloadGB.toFixed(2)} GB × $${pricing.download_gb}/GB)`,       cost: costs.downloadCost || 0 },
     { label: `API Requests (${requests.toLocaleString()} × $${pricing.requests_per_1k}/1k)`, cost: costs.requestCost || 0 },
   ] : [];
 

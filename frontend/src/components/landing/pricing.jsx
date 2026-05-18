@@ -193,15 +193,19 @@ export function Pricing() {
           <div className="flex items-center divide-x divide-white/[0.06] rounded-2xl border border-white/[0.08] overflow-hidden" style={{ background: "#0b0d18", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 24px rgba(0,0,0,0.4)" }}>
             <div className="px-8 py-5 text-center">
               <p className="text-xs text-white/30 mb-1 uppercase tracking-widest">Storage overage</p>
-              <p className="font-mono font-semibold text-blue-400 text-sm">$0.023 / GB</p>
+              <p className="font-mono font-semibold text-blue-400 text-sm">$50 / GB</p>
+            </div>
+            <div className="px-8 py-5 text-center">
+              <p className="text-xs text-white/30 mb-1 uppercase tracking-widest">Upload overage</p>
+              <p className="font-mono font-semibold text-orange-400 text-sm">$30 / GB</p>
             </div>
             <div className="px-8 py-5 text-center">
               <p className="text-xs text-white/30 mb-1 uppercase tracking-widest">Egress overage</p>
-              <p className="font-mono font-semibold text-violet-400 text-sm">$0.09 / GB</p>
+              <p className="font-mono font-semibold text-violet-400 text-sm">$20 / GB</p>
             </div>
             <div className="px-8 py-5 text-center">
               <p className="text-xs text-white/30 mb-1 uppercase tracking-widest">Request overage</p>
-              <p className="font-mono font-semibold text-emerald-400 text-sm">$0.0004 / 1k</p>
+              <p className="font-mono font-semibold text-emerald-400 text-sm">$0.50 / req</p>
             </div>
           </div>
         </motion.div>

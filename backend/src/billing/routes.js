@@ -6,27 +6,31 @@ import { getCache, setCache, tenantCacheKey } from '../shared/cache.js';
 
 const GB = 1024 * 1024 * 1024;
 const PRICING = {
-  storage_gb: 0.023,
-  download_gb: 0.09,
-  requests_per_1k: 0.0004,
+  storage_gb: 50,
+  upload_gb: 30,
+  download_gb: 20,
+  requests_per_1k: 500,
 };
 
-function calculateCost(storageBytes, downloadBytes, requestCount) {
-  const storageGb = Number(storageBytes) / GB;
+function calculateCost(storageBytes, uploadBytes, downloadBytes, requestCount) {
+  const storageGb  = Number(storageBytes)  / GB;
+  const uploadGb   = Number(uploadBytes)   / GB;
   const downloadGb = Number(downloadBytes) / GB;
   const storageFree = 5;
   const downloadFree = 1;
   const requestFree = 10000;
 
-  const storageCost = Math.max(0, storageGb - storageFree) * PRICING.storage_gb;
+  const storageCost  = Math.max(0, storageGb  - storageFree)  * PRICING.storage_gb;
+  const uploadCost   = uploadGb * PRICING.upload_gb;
   const downloadCost = Math.max(0, downloadGb - downloadFree) * PRICING.download_gb;
-  const requestCost = Math.max(0, requestCount - requestFree) / 1000 * PRICING.requests_per_1k;
+  const requestCost  = Math.max(0, requestCount - requestFree) / 1000 * PRICING.requests_per_1k;
 
   return {
-    storageCost: +storageCost.toFixed(4),
+    storageCost:  +storageCost.toFixed(4),
+    uploadCost:   +uploadCost.toFixed(4),
     downloadCost: +downloadCost.toFixed(4),
-    requestCost: +requestCost.toFixed(4),
-    total: +(storageCost + downloadCost + requestCost).toFixed(2),
+    requestCost:  +requestCost.toFixed(4),
+    total: +(storageCost + uploadCost + downloadCost + requestCost).toFixed(2),
   };
 }
 
@@ -76,15 +80,17 @@ export async function billingRoutes(fastify) {
       }),
     ]);
 
-    const storageBytes = storageResult._sum.size || BigInt(0);
+    const storageBytes  = storageResult._sum.size || BigInt(0);
+    const uploadBytes   = uploadResult._sum.bytes  || BigInt(0);
     const downloadBytes = downloadResult._sum.bytes || BigInt(0);
 
-    const costs = calculateCost(storageBytes, downloadBytes, requestCount);
+    const costs = calculateCost(storageBytes, uploadBytes, downloadBytes, requestCount);
 
     const result = {
       period: startOfMonth.toISOString().slice(0, 7),
       usage: {
-        storageBytes: storageBytes.toString(),
+        storageBytes:  storageBytes.toString(),
+        uploadBytes:   uploadBytes.toString(),
         downloadBytes: downloadBytes.toString(),
         requestCount,
       },
