@@ -12,9 +12,12 @@ model Tenant {
   name         String
   email        String   @unique
   passwordHash String
-  plan         String   @default("free")
-  status       String   @default("active")
-  role         String   @default("tenant_admin")
+  plan            String   @default("free")
+  status          String   @default("active")
+  role            String   @default("tenant_admin")
+  rateLimitMax    Int      @default(1000)
+  rateLimitWindow Int      @default(60)
+  pricingOverride Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

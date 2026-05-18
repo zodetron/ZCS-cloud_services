@@ -1,6 +1,7 @@
 import { prisma } from '../shared/prisma.js';
 import { minioClient } from '../shared/minio.js';
 import { authenticateApiKey } from '../middleware/auth.js';
+import { rateLimitMiddleware } from '../rate-limit/index.js';
 import { config } from '../config/index.js';
 import { NotFoundError, ConflictError, ValidationError } from '../shared/errors.js';
 import { logger } from '../shared/logger.js';
@@ -19,6 +20,7 @@ async function emitUsage(tenantId, apiKeyId, eventType, bytes, extra = {}) {
 
 export async function storageRoutes(fastify) {
   fastify.addHook('preHandler', authenticateApiKey);
+  fastify.addHook('preHandler', rateLimitMiddleware);
 
   // ── List buckets ───────────────────────────────────────────────────────────
   fastify.get('/buckets', async (req) => {

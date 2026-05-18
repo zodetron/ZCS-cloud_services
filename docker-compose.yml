@@ -34,24 +34,6 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
-    container_name: storagecloud-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     build:
       context: .
@@ -64,12 +46,6 @@ services:
     env_file: .env
     environment:
       REDIS_HOST: redis
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: '9000'
-      MINIO_USE_SSL: 'false'
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
-      MINIO_DEFAULT_BUCKET: storagecloud
       NODE_ENV: production
     depends_on:
       redis:
@@ -78,4 +54,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  minio_data:

@@ -1,11 +1,13 @@
 import { prisma } from '../shared/prisma.js';
 import { authenticate, authenticateApiKey } from '../middleware/auth.js';
+import { rateLimitMiddleware } from '../rate-limit/index.js';
 import { getCache, setCache, tenantCacheKey } from '../shared/cache.js';
 
 export async function meteringRoutes(fastify) {
   // ── Demo usage — isolated scope so only API-key auth applies ───────────────
   fastify.register(async (scope) => {
     scope.addHook('preHandler', authenticateApiKey);
+    scope.addHook('preHandler', rateLimitMiddleware);
 
     scope.get('/demo/usage', async (req) => {
       const now = new Date();
@@ -66,6 +68,7 @@ export async function meteringRoutes(fastify) {
   // ── JWT-protected routes — isolated scope ──────────────────────────────────
   fastify.register(async (scope) => {
     scope.addHook('preHandler', authenticate);
+    scope.addHook('preHandler', rateLimitMiddleware);
 
     scope.get('/usage/summary', async (req) => {
       const cacheKey = tenantCacheKey(req.tenantId, 'usage:summary');

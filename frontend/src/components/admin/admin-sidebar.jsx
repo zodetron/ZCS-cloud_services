@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   FileText,
   Settings,
+  BookOpen,
   LogOut,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const navItems = [
   { icon: AlertTriangle, label: "Abuse Detection", href: "/admin/abuse" },
   { icon: FileText, label: "Audit Logs", href: "/admin/logs" },
   { icon: Settings, label: "Platform Config", href: "/admin/config" },
+  { icon: BookOpen, label: "Help & Docs", href: "/admin/docs" },
 ];
 
 export function AdminSidebar() {

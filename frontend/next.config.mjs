@@ -20,10 +20,12 @@ const nextConfig = {
     ],
   },
   async rewrites() {
+    const backendPort = process.env.BACKEND_PORT || '4000';
+    const backendUrl = `http://localhost:${backendPort}`;
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/:path*`,
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

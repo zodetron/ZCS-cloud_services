@@ -1,14 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Server, Database, Zap, Activity, HardDrive, Cpu } from "lucide-react";
+import { Server, Database, Zap, Activity, Cpu, HardDrive, RefreshCw, Clock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { api } from "@/lib/api";
 
-function generateMetric(base, variance = 10) {
-  return Math.max(0, Math.min(100, base + (Math.random() - 0.5) * variance));
+const POLL_MS = 5000;
+const HISTORY = 20;
+
+function formatBytes(bytes) {
+  const b = Number(bytes);
+  if (b >= 1e9) return `${(b / 1e9).toFixed(1)} GB`;
+  if (b >= 1e6) return `${(b / 1e6).toFixed(1)} MB`;
+  return `${(b / 1e3).toFixed(0)} KB`;
 }
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m ${Math.floor(seconds % 60)}s`;
+}
+
+const serviceIcons = {
+  "API Server": Zap,
+  "PostgreSQL": Server,
+  "Redis": Database,
+  "Object Storage": HardDrive,
+};
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -16,72 +39,114 @@ const CustomTooltip = ({ active, payload, label }) => {
     <div className="rounded-lg border border-border/50 bg-card p-3 shadow-xl text-xs">
       <p className="text-muted-foreground mb-1">{label}</p>
       {payload.map((p) => (
-        <p key={p.name} style={{ color: p.color }}>{p.name}: {typeof p.value === 'number' ? p.value.toFixed(1) : p.value}%</p>
+        <p key={p.name} style={{ color: p.color }}>
+          {p.name}: {typeof p.value === "number" ? p.value.toFixed(1) : p.value}%
+        </p>
       ))}
     </div>
   );
 };
 
 export default function InfrastructurePage() {
-  const [metrics, setMetrics] = useState(() =>
-    Array.from({ length: 20 }, (_, i) => ({
-      t: `${i}s`,
-      cpu: generateMetric(35),
-      memory: generateMetric(62),
-      disk: generateMetric(45),
-    }))
-  );
+  const [data, setData] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics((prev) => {
-        const next = [...prev.slice(1), {
-          t: "now",
-          cpu: generateMetric(35),
-          memory: generateMetric(62),
-          disk: generateMetric(45),
-        }];
-        return next.map((m, i) => ({ ...m, t: `${next.length - 1 - i}s` }));
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const res = await api.get("/api/admin/infrastructure");
+      setData(res);
+      setLastUpdated(new Date());
+      setError(null);
+      setHistory((prev) => {
+        const point = {
+          t: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          cpu: res.system.cpuPercent,
+          memory: res.system.memoryPercent,
+        };
+        const next = [...prev, point];
+        return next.slice(-HISTORY);
       });
-    }, 1500);
-    return () => clearInterval(interval);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const latest = metrics[metrics.length - 1];
+  useEffect(() => {
+    fetchMetrics();
+    const id = setInterval(fetchMetrics, POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchMetrics]);
 
-  const services = [
-    { name: "API Gateway", nodes: 3, healthy: 3, region: "us-east-1", icon: Zap, color: "blue" },
-    { name: "MinIO Cluster", nodes: 5, healthy: 5, region: "multi", icon: Database, color: "purple" },
-    { name: "PostgreSQL Primary", nodes: 1, healthy: 1, region: "us-east-1", icon: Server, color: "emerald" },
-    { name: "PostgreSQL Replica", nodes: 2, healthy: 2, region: "multi", icon: Server, color: "emerald" },
-    { name: "Redis Cluster", nodes: 3, healthy: 3, region: "us-east-1", icon: Zap, color: "orange" },
-    { name: "BullMQ Workers", nodes: 4, healthy: 4, region: "us-east-1", icon: Activity, color: "blue" },
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+        <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Fetching live metrics…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">
+        Failed to load infrastructure metrics: {error}
+      </div>
+    );
+  }
+
+  const { system, storage, services } = data;
+
+  const gauges = [
+    { label: "CPU Usage", value: system.cpuPercent, detail: `${system.cpuCores} cores · load ${system.loadAvg1m}`, color: "#3b82f6" },
+    { label: "System Memory", value: system.memoryPercent, detail: `${formatBytes(system.memoryUsedBytes)} / ${formatBytes(system.memoryTotalBytes)}`, color: "#a855f7" },
+    { label: "Heap Memory", value: +((system.heapUsedBytes / system.heapTotalBytes) * 100).toFixed(1), detail: `${formatBytes(system.heapUsedBytes)} / ${formatBytes(system.heapTotalBytes)}`, color: "#10b981" },
+  ];
+
+  const infoCards = [
+    { label: "Process Uptime", value: formatUptime(system.processUptimeSeconds), icon: Clock },
+    { label: "Node.js", value: system.nodeVersion, icon: Zap },
+    { label: "Platform", value: system.platform, icon: Server },
+    { label: "Total Objects", value: Number(storage.objectCount).toLocaleString(), icon: Database },
+    { label: "Total Buckets", value: Number(storage.bucketCount).toLocaleString(), icon: HardDrive },
+    { label: "Storage Used", value: formatBytes(storage.totalObjectBytes), icon: Activity },
   ];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-      <PageHeader title="Infrastructure" description="Real-time platform health monitoring." badge="Live" />
+      <div className="flex items-start justify-between">
+        <PageHeader
+          title="Infrastructure"
+          description="Live platform health — refreshes every 5 seconds."
+          badge="Live"
+        />
+        {lastUpdated && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Updated {lastUpdated.toLocaleTimeString()}
+          </p>
+        )}
+      </div>
 
-      {/* Live metrics */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "CPU Usage", value: latest.cpu, key: "cpu", color: "#3b82f6" },
-          { label: "Memory", value: latest.memory, key: "memory", color: "#a855f7" },
-          { label: "Disk I/O", value: latest.disk, key: "disk", color: "#10b981" },
-        ].map(({ label, value, key, color }) => (
-          <div key={key} className="rounded-xl border border-border/50 bg-card p-5">
+      {/* Gauges */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {gauges.map(({ label, value, detail, color }) => (
+          <div key={label} className="rounded-xl border border-border/50 bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-muted-foreground">{label}</p>
               <span className="text-xl font-bold text-foreground font-mono">{value.toFixed(1)}%</span>
             </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-2">
               <motion.div
                 animate={{ width: `${value}%` }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
                 className="h-full rounded-full"
                 style={{ backgroundColor: color }}
               />
             </div>
+            <p className="text-xs text-muted-foreground font-mono">{detail}</p>
           </div>
         ))}
       </div>
@@ -89,14 +154,13 @@ export default function InfrastructurePage() {
       {/* Chart */}
       <div className="rounded-xl border border-border/50 bg-card p-6">
         <h2 className="font-semibold text-foreground mb-1">Resource Utilization</h2>
-        <p className="text-sm text-muted-foreground mb-6">Real-time system metrics</p>
+        <p className="text-sm text-muted-foreground mb-6">
+          CPU & memory over the last {history.length} samples (live)
+        </p>
         <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={metrics}>
+          <AreaChart data={history}>
             <defs>
-              {[
-                { id: "cpu", color: "#3b82f6" },
-                { id: "memory", color: "#a855f7" },
-              ].map(({ id, color }) => (
+              {[{ id: "cpu", color: "#3b82f6" }, { id: "memory", color: "#a855f7" }].map(({ id, color }) => (
                 <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={color} stopOpacity={0.2} />
                   <stop offset="95%" stopColor={color} stopOpacity={0} />
@@ -104,8 +168,8 @@ export default function InfrastructurePage() {
               ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} reversed />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+            <XAxis dataKey="t" tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
             <Tooltip content={<CustomTooltip />} />
             <Area type="monotone" dataKey="cpu" name="CPU" stroke="#3b82f6" fill="url(#cpu)" strokeWidth={1.5} dot={false} />
             <Area type="monotone" dataKey="memory" name="Memory" stroke="#a855f7" fill="url(#memory)" strokeWidth={1.5} dot={false} />
@@ -113,26 +177,49 @@ export default function InfrastructurePage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Service grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {services.map((service) => (
-          <div key={service.name} className="p-5 rounded-xl border border-border/50 bg-card">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <service.icon className={`w-4 h-4 text-${service.color}-400`} />
-                <p className="text-sm font-medium text-foreground">{service.name}</p>
+      {/* Service health */}
+      <div>
+        <h2 className="font-semibold text-foreground mb-4">Service Health</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {services.map((svc) => {
+            const Icon = serviceIcons[svc.name] || Server;
+            const healthy = svc.status === "healthy";
+            return (
+              <div key={svc.name} className="p-5 rounded-xl border border-border/50 bg-card">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">{svc.name}</p>
+                  </div>
+                  <div className={`w-2 h-2 rounded-full ${healthy ? "bg-emerald-400 pulse-glow" : "bg-red-400"}`} />
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className={healthy ? "text-emerald-400" : "text-red-400"}>
+                    {healthy ? "Healthy" : "Unhealthy"}
+                  </span>
+                  <span className="font-mono">{svc.latencyMs}ms</span>
+                </div>
+                {svc.error && (
+                  <p className="text-xs text-red-400 mt-2 truncate">{svc.error}</p>
+                )}
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 pulse-glow" />
-                <span className="text-xs text-emerald-400">Healthy</span>
-              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* System info */}
+      <div>
+        <h2 className="font-semibold text-foreground mb-4">System Info</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {infoCards.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="p-4 rounded-xl border border-border/50 bg-card">
+              <Icon className="w-4 h-4 text-muted-foreground mb-2" />
+              <p className="text-xs text-muted-foreground mb-1">{label}</p>
+              <p className="text-sm font-semibold text-foreground font-mono">{value}</p>
             </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{service.healthy}/{service.nodes} nodes</span>
-              <span className="font-mono">{service.region}</span>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </motion.div>
   );

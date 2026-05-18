@@ -1,5 +1,6 @@
 import { prisma } from '../shared/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { rateLimitMiddleware } from '../rate-limit/index.js';
 import { NotFoundError } from '../shared/errors.js';
 import { getCache, setCache, tenantCacheKey } from '../shared/cache.js';
 
@@ -31,6 +32,7 @@ function calculateCost(storageBytes, downloadBytes, requestCount) {
 
 export async function billingRoutes(fastify) {
   fastify.addHook('preHandler', authenticate);
+  fastify.addHook('preHandler', rateLimitMiddleware);
 
   fastify.get('/invoices', async (req) => {
     const invoices = await prisma.invoice.findMany({

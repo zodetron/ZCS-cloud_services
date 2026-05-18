@@ -7,10 +7,9 @@ import { useEffect, useState } from "react";
 function Pulse({ delay = 0, size = "sm" }) {
   const sizes = { sm: "w-1.5 h-1.5", md: "w-2 h-2", lg: "w-3 h-3" };
   return (
-    <motion.div
-      animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
-      transition={{ duration: 2, delay, repeat: Infinity, ease: "easeInOut" }}
-      className={`${sizes[size]} rounded-full bg-blue-400`}
+    <div
+      className={`${sizes[size]} rounded-full bg-blue-400 animate-pulse-dot`}
+      style={{ animationDelay: `${delay}s` }}
     />
   );
 }
@@ -73,26 +72,26 @@ export function InfrastructureVisual() {
   }, []);
 
   return (
-    <div className="relative max-w-5xl mx-auto rounded-2xl border border-border/50 bg-black/40 backdrop-blur-xl overflow-hidden glow-blue">
+    <div className="relative max-w-5xl mx-auto rounded-2xl overflow-hidden" style={{ background: "#0b0d18", borderTop: "1px solid rgba(96,165,250,0.55)", borderLeft: "1px solid rgba(255,255,255,0.08)", borderRight: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
       {/* Window chrome */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30 bg-muted/10">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.07]" style={{ background: "rgba(255,255,255,0.03)" }}>
         <div className="flex gap-1.5">
           <div className="w-3 h-3 rounded-full bg-red-500/70" />
           <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
           <div className="w-3 h-3 rounded-full bg-green-500/70" />
         </div>
         <div className="flex-1 flex justify-center">
-          <div className="px-4 py-0.5 rounded bg-muted/30 text-xs text-muted-foreground font-mono">
+          <div className="px-4 py-0.5 rounded bg-white/[0.05] text-xs text-white/50 font-mono">
             storagecloud.io — Infrastructure Overview
           </div>
         </div>
         <Pulse size="sm" />
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-border/30" style={{ minHeight: 340 }}>
+      <div className="grid grid-cols-3 divide-x divide-white/10" style={{ minHeight: 340 }}>
         {/* Network graph */}
         <div className="col-span-2 p-6 relative">
-          <p className="text-xs text-muted-foreground font-mono mb-4 flex items-center gap-2">
+          <p className="text-xs text-white/50 font-mono mb-4 flex items-center gap-2">
             <span className="text-blue-400">●</span> Request Flow — Live
           </p>
 
@@ -161,7 +160,7 @@ export function InfrastructureVisual() {
 
         {/* Activity feed */}
         <div className="p-6">
-          <p className="text-xs text-muted-foreground font-mono mb-4 flex items-center gap-2">
+          <p className="text-xs text-white/50 font-mono mb-4 flex items-center gap-2">
             <span className="text-emerald-400">●</span> Activity
           </p>
           <div className="space-y-3 font-mono">
@@ -173,8 +172,8 @@ export function InfrastructureVisual() {
                 transition={{ duration: 0.3 }}
                 className="text-xs"
               >
-                <span className="text-muted-foreground/60 block mb-0.5">{log.time}</span>
-                <span className={i === 0 ? "text-emerald-400" : "text-muted-foreground/60"}>
+                <span className="text-white/50/60 block mb-0.5">{log.time}</span>
+                <span className={i === 0 ? "text-emerald-400" : "text-white/50/60"}>
                   {log.msg}
                 </span>
               </motion.div>
@@ -182,14 +181,14 @@ export function InfrastructureVisual() {
           </div>
 
           {/* Live metrics */}
-          <div className="mt-6 space-y-3 border-t border-border/30 pt-4">
+          <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
             {[
               { label: "Throughput", value: "2.4 GB/s", color: "text-blue-400" },
               { label: "Requests", value: "12.4k/s", color: "text-purple-400" },
               { label: "Latency", value: "8ms p99", color: "text-emerald-400" },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{label}</span>
+                <span className="text-white/50">{label}</span>
                 <span className={`font-mono font-medium ${color}`}>{value}</span>
               </div>
             ))}

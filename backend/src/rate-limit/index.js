@@ -1,10 +1,40 @@
 import { redis } from '../shared/redis.js';
+import { prisma } from '../shared/prisma.js';
 import { RateLimitError } from '../shared/errors.js';
 
-const DEFAULT_WINDOW = 60; // seconds
-const DEFAULT_MAX = 1000;  // requests per window
+const CONFIG_CACHE_TTL = 300; // cache tenant config for 5 min
 
-export async function checkRateLimit(tenantId, keyId, max = DEFAULT_MAX, window = DEFAULT_WINDOW) {
+async function getTenantLimits(tenantId) {
+  const cacheKey = `rl:config:${tenantId}`;
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch {}
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { rateLimitMax: true, rateLimitWindow: true },
+  });
+
+  const limits = {
+    max: tenant?.rateLimitMax ?? 1000,
+    window: tenant?.rateLimitWindow ?? 60,
+  };
+
+  try {
+    await redis.set(cacheKey, JSON.stringify(limits), 'EX', CONFIG_CACHE_TTL);
+  } catch {}
+
+  return limits;
+}
+
+export async function invalidateTenantLimitCache(tenantId) {
+  try {
+    await redis.del(`rl:config:${tenantId}`);
+  } catch {}
+}
+
+export async function checkRateLimit(tenantId, keyId, max, window) {
   const key = keyId ? `rl:key:${keyId}` : `rl:tenant:${tenantId}`;
 
   try {
@@ -16,7 +46,6 @@ export async function checkRateLimit(tenantId, keyId, max = DEFAULT_MAX, window 
     const current = count[1];
 
     if (current > max) {
-      const ttl = await redis.ttl(key);
       throw new RateLimitError();
     }
 
@@ -43,7 +72,8 @@ export async function rateLimitMiddleware(req, reply) {
   if (!req.tenantId) return;
 
   try {
-    const result = await checkRateLimit(req.tenantId, req.apiKeyId);
+    const { max, window } = await getTenantLimits(req.tenantId);
+    const result = await checkRateLimit(req.tenantId, req.apiKeyId, max, window);
     const headers = rateLimitHeaders(result);
     Object.entries(headers).forEach(([k, v]) => reply.header(k, v));
   } catch (err) {

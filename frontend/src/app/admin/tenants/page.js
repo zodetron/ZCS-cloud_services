@@ -1,12 +1,91 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
-import { Users, Search, Ban, CheckCircle, RefreshCw } from "lucide-react";
+import { Users, Search, Ban, CheckCircle, RefreshCw, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { BadgeStatus } from "@/components/ui/badge-status";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
+
+const PLANS = ["free", "pro", "enterprise"];
+
+const PLAN_STYLES = {
+  free:       "border-zinc-500/30 text-zinc-400 hover:bg-zinc-500/10",
+  pro:        "border-blue-500/30 text-blue-400 hover:bg-blue-500/10",
+  enterprise: "border-purple-500/30 text-purple-400 hover:bg-purple-500/10",
+};
+
+function PlanDropdown({ tenant, onPlanChange }) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [saving, setSaving] = useState(false);
+  const btnRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e) {
+      if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  function toggle() {
+    if (!open) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    }
+    setOpen((v) => !v);
+  }
+
+  async function select(plan) {
+    if (plan === tenant.plan) { setOpen(false); return; }
+    setSaving(true);
+    setOpen(false);
+    try {
+      await api.patch(`/api/admin/tenants/${tenant.id}/plan`, { plan });
+      onPlanChange(tenant.id, plan);
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        disabled={saving}
+        className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.free}`}
+      >
+        {saving ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
+        <span className="capitalize">{tenant.plan}</span>
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && createPortal(
+        <div
+          style={{ position: "absolute", top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+          className="w-32 rounded-lg border border-border/50 bg-card shadow-xl overflow-hidden"
+        >
+          {PLANS.map((p) => (
+            <button
+              key={p}
+              onMouseDown={(e) => { e.preventDefault(); select(p); }}
+              className={`w-full text-left px-3 py-2 text-xs capitalize transition-colors hover:bg-muted/30 ${p === tenant.plan ? "text-foreground font-medium" : "text-muted-foreground"}`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 const GB = 1024 * 1024 * 1024;
 
@@ -23,6 +102,10 @@ export default function TenantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [toggling, setToggling] = useState(null);
+
+  function handlePlanChange(id, plan) {
+    setTenants((prev) => prev.map((t) => t.id === id ? { ...t, plan } : t));
+  }
 
   const load = useCallback(async (q = "") => {
     try {
@@ -91,7 +174,7 @@ export default function TenantsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/30 bg-muted/20">
-                  {["Tenant", "Plan", "Status", "Buckets", "Objects", "Joined", "Actions"].map((h) => (
+                  {["Tenant", "Plan", "Status", "Buckets", "Events", "Joined", "Actions"].map((h) => (
                     <th key={h} className="h-11 px-5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -116,7 +199,7 @@ export default function TenantsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5"><BadgeStatus status={tenant.plan} /></td>
+                    <td className="px-5"><PlanDropdown tenant={tenant} onPlanChange={handlePlanChange} /></td>
                     <td className="px-5"><BadgeStatus status={tenant.status} /></td>
                     <td className="px-5 font-mono text-muted-foreground text-xs">{tenant._count?.buckets ?? 0}</td>
                     <td className="px-5 font-mono text-muted-foreground text-xs">{(tenant._count?.usageEvents ?? 0).toLocaleString()}</td>
