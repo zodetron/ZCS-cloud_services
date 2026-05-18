@@ -48,7 +48,7 @@ export function Footer() {
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-violet-500 to-blue-600" />
                 <Cloud className="relative w-4 h-4 text-white m-2" />
               </div>
-              <span className="font-bold text-white tracking-tight">StorageCloud</span>
+              <span className="font-bold text-white tracking-tight">ZCS</span>
             </Link>
             <p className="text-sm text-white/30 leading-relaxed mb-6 max-w-xs">
               Enterprise object storage for the modern web. S3-compatible, globally distributed, developer-first.
@@ -90,7 +90,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/[0.05] gap-4">
           <p className="text-sm text-white/20">
-            © 2025 StorageCloud, Inc. All rights reserved.
+            © 2025 Zodetron Cloud Services. All rights reserved.
           </p>
           <div className="flex items-center gap-2">
             <div className="animate-blink w-2 h-2 rounded-full bg-emerald-400" />

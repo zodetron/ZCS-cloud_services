@@ -28,7 +28,7 @@ const navItems = [
   { icon: AlertTriangle, label: "Abuse Detection", href: "/admin/abuse" },
   { icon: FileText, label: "Audit Logs", href: "/admin/logs" },
   { icon: Settings, label: "Platform Config", href: "/admin/config" },
-  { icon: BookOpen, label: "Help & Docs", href: "/admin/docs" },
+  { icon: BookOpen, label: "Help & Docs", href: "/docs" },
 ];
 
 export function AdminSidebar() {
@@ -44,7 +44,7 @@ export function AdminSidebar() {
         </div>
         <div>
           <span className="font-bold text-sm text-foreground">Admin Console</span>
-          <p className="text-xs text-muted-foreground">StorageCloud</p>
+          <p className="text-xs text-muted-foreground">Zodetron Cloud Services</p>
         </div>
       </div>
 

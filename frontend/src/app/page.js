@@ -151,7 +151,7 @@ function CTASection() {
             <span className="text-gradient-hero">faster?</span>
           </h2>
           <p className="text-xl text-white/40 mb-10 max-w-xl mx-auto leading-relaxed">
-            Join thousands of developers building on StorageCloud. Start free, scale to millions.
+            Join thousands of developers building on ZCS. Start free, scale to millions.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link

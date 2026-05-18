@@ -20,6 +20,7 @@ import {
   Activity,
   HelpCircle,
   Zap,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
@@ -59,7 +60,7 @@ export function Sidebar() {
               transition={{ duration: 0.15 }}
               className="font-bold text-sm text-foreground truncate"
             >
-              StorageCloud
+              ZCS
             </motion.span>
           )}
         </AnimatePresence>
@@ -137,6 +138,22 @@ export function Sidebar() {
             )}
           </AnimatePresence>
         </Link>
+
+        {tenant?.role === 'platform_admin' && (
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          >
+            <Shield className="w-4 h-4 shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  Admin Panel
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        )}
 
         <button
           onClick={logout}

@@ -9,11 +9,11 @@ const tabs = ["Node.js", "Python", "REST API"];
 
 const snippets = {
   "Node.js": [
-    { type: "comment", text: "// Install: npm install @storagecloud/sdk" },
+    { type: "comment", text: "// Install: npm install @zcs/sdk" },
     { type: "blank" },
-    { type: "keyword", text: "import", rest: " { StorageCloud } ", keyword2: "from", string: " '@storagecloud/sdk'" },
+    { type: "keyword", text: "import", rest: " { ZCS } ", keyword2: "from", string: " '@zcs/sdk'" },
     { type: "blank" },
-    { type: "const", name: "client", rest: " = ", call: "new StorageCloud", args: "({" },
+    { type: "const", name: "client", rest: " = ", call: "new ZCS", args: "({" },
     { type: "prop", key: "apiKey", val: "process.env.STORAGECLOUD_API_KEY" },
     { type: "close", text: "});" },
     { type: "blank" },
@@ -25,11 +25,11 @@ const snippets = {
     { type: "close", text: "});" },
   ],
   "Python": [
-    { type: "comment", text: "# pip install storagecloud-python" },
+    { type: "comment", text: "# pip install zcs-python" },
     { type: "blank" },
     { type: "raw", tokens: [{ t: "import", c: "#7c83f5" }, { t: " storagecloud", c: "#e2e8f0" }] },
     { type: "blank" },
-    { type: "raw", tokens: [{ t: "client", c: "#e2e8f0" }, { t: " = ", c: "#94a3b8" }, { t: "storagecloud.Client(", c: "#60a5fa" }] },
+    { type: "raw", tokens: [{ t: "client", c: "#e2e8f0" }, { t: " = ", c: "#94a3b8" }, { t: "zcs.Client(", c: "#60a5fa" }] },
     { type: "raw", tokens: [{ t: "    api_key", c: "#e2e8f0" }, { t: "=", c: "#94a3b8" }, { t: "os.environ[", c: "#e2e8f0" }, { t: "'STORAGECLOUD_KEY'", c: "#86efac" }, { t: "]", c: "#e2e8f0" }] },
     { type: "raw", tokens: [{ t: ")", c: "#e2e8f0" }] },
     { type: "blank" },
@@ -42,7 +42,7 @@ const snippets = {
     { type: "comment", text: "# Generate presigned upload URL" },
     { type: "blank" },
     { type: "raw", tokens: [{ t: "curl", c: "#60a5fa" }, { t: " -X POST \\", c: "#e2e8f0" }] },
-    { type: "raw", tokens: [{ t: '  "https://api.storagecloud.io/presign/upload" \\', c: "#86efac" }] },
+    { type: "raw", tokens: [{ t: '  "https://api.zcs.io/presign/upload" \\', c: "#86efac" }] },
     { type: "raw", tokens: [{ t: "  -H ", c: "#e2e8f0" }, { t: '"X-API-Key: sk_live_xxxx" \\', c: "#86efac" }] },
     { type: "raw", tokens: [{ t: "  -d ", c: "#e2e8f0" }, { t: "'{", c: "#86efac" }] },
     { type: "raw", tokens: [{ t: '    "bucket": "my-assets",', c: "#86efac" }] },
@@ -148,7 +148,7 @@ export function DeveloperSection() {
             </h2>
 
             <p className="text-lg text-white/60 mb-10 leading-relaxed">
-              StorageCloud is 100% S3-compatible. Use boto3, AWS SDK, rclone, or any S3 tool — no changes needed. Or use our SDKs for a first-class experience.
+              ZCS is 100% S3-compatible. Use boto3, AWS SDK, rclone, or any S3 tool — no changes needed. Or use our SDKs for a first-class experience.
             </p>
 
             <div className="space-y-4 mb-10">
@@ -226,7 +226,7 @@ export function DeveloperSection() {
               {/* Footer bar */}
               <div className="flex items-center gap-4 px-5 py-2.5 bg-white/[0.02] border-t border-white/[0.04]">
                 <Circle className="w-2 h-2 fill-emerald-400 text-emerald-400" />
-                <span className="text-xs text-white/20 font-mono">storagecloud.io — API ready</span>
+                <span className="text-xs text-white/20 font-mono">zcs.io — API ready</span>
               </div>
             </div>
           </motion.div>

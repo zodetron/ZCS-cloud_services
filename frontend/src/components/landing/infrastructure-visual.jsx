@@ -82,7 +82,7 @@ export function InfrastructureVisual() {
         </div>
         <div className="flex-1 flex justify-center">
           <div className="px-4 py-0.5 rounded bg-white/[0.05] text-xs text-white/50 font-mono">
-            storagecloud.io — Infrastructure Overview
+            zcs.io — Infrastructure Overview
           </div>
         </div>
         <Pulse size="sm" />

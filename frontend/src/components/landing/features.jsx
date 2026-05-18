@@ -24,9 +24,9 @@ function BentoCard({ children, className = "", delay = 0 }) {
 
 function MiniCodeBlock() {
   const lines = [
-    { indent: 0, tokens: [{ t: "import", c: "#7c83f5" }, { t: " { StorageCloud } ", c: "#e2e8f0" }, { t: "from", c: "#7c83f5" }, { t: " '@storagecloud/sdk'", c: "#86efac" }] },
+    { indent: 0, tokens: [{ t: "import", c: "#7c83f5" }, { t: " { ZCS } ", c: "#e2e8f0" }, { t: "from", c: "#7c83f5" }, { t: " '@zcs/sdk'", c: "#86efac" }] },
     { indent: 0, tokens: [] },
-    { indent: 0, tokens: [{ t: "const", c: "#7c83f5" }, { t: " client ", c: "#e2e8f0" }, { t: "=", c: "#94a3b8" }, { t: " new StorageCloud({", c: "#e2e8f0" }] },
+    { indent: 0, tokens: [{ t: "const", c: "#7c83f5" }, { t: " client ", c: "#e2e8f0" }, { t: "=", c: "#94a3b8" }, { t: " new ZCS({", c: "#e2e8f0" }] },
     { indent: 1, tokens: [{ t: "apiKey", c: "#f8fafc" }, { t: ": process.env.", c: "#94a3b8" }, { t: "API_KEY", c: "#86efac" }] },
     { indent: 0, tokens: [{ t: "});", c: "#e2e8f0" }] },
     { indent: 0, tokens: [] },

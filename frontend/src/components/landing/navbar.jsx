@@ -44,7 +44,10 @@ export function Navbar() {
               <div className="animate-spin-slow absolute -inset-2 bg-gradient-to-r from-blue-400/40 to-violet-400/40 blur-md" />
               <Cloud className="relative w-4 h-4 text-white m-2" />
             </div>
-            <span className="font-bold text-white tracking-tight">StorageCloud</span>
+            <div>
+              <span className="font-bold text-white tracking-tight">ZCS</span>
+              <p className="text-[11px] text-white font-bold leading-none mt-0.5">built by hardik with ❤️ for ZOHO SETU</p>
+            </div>
           </Link>
 
           {/* Desktop nav */}

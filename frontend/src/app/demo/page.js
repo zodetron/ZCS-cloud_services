@@ -61,8 +61,8 @@ const EVENT_COLORS = {
 };
 
 const SAMPLE_CONTENT = {
-  json: JSON.stringify({ hello: "world", timestamp: new Date().toISOString(), source: "StorageCloud Demo" }, null, 2),
-  text: "Hello from StorageCloud! This is a plain-text file uploaded via the API Explorer.",
+  json: JSON.stringify({ hello: "world", timestamp: new Date().toISOString(), source: "ZCS Demo" }, null, 2),
+  text: "Hello from ZCS! This is a plain-text file uploaded via the API Explorer.",
 };
 
 // ── Drag-and-drop file upload zone ─────────────────────────────────────────

@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "StorageCloud — Enterprise Object Storage Platform",
-  description: "Production-grade multi-tenant object storage. S3-compatible, globally distributed, developer-first.",
+  title: "ZCS — Zodetron Cloud Services",
+  description: "Zodetron Cloud Services — production-grade multi-tenant object storage. S3-compatible, globally distributed, developer-first.",
   keywords: ["object storage", "cloud storage", "S3 compatible", "developer platform"],
   openGraph: {
-    title: "StorageCloud",
+    title: "ZCS",
     description: "Enterprise object storage for the modern web",
     type: "website",
   },
